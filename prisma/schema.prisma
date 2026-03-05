@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Event {
+  id              String    @id @default(cuid())
+  name            String
+  state           String?
+  location        String?
+  startDate       DateTime?
+  endDate         DateTime?
+  category        String?
+  attendance      Int?
+  boothType       String?
+  boothCost       Float?
+  source          String
+  link            String?
+  vendorAppUrl    String?
+  appDeadline     DateTime?
+  applicationType String?
+
+  organizerName   String?
+  organizerEmail  String?
+  organizerPhone  String?
+
+  score           Int       @default(0)
+  status          String    @default("discovered")
+  hasHairVendor   Boolean?
+  notes           String?
+
+  screenshotPath  String?
+  appliedDate     DateTime?
+  acceptedDate    DateTime?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Settings {
+  id                 String  @id @default("default")
+  businessName       String  @default("Straight Ahead Beauty")
+  legalName          String  @default("Milan Beauty LLC")
+  owner              String  @default("Santiago Martinez")
+  email              String  @default("santiagorealtyfl@gmail.com")
+  phone              String  @default("786-929-8309")
+  address            String  @default("1 Karanda Pl, Palm Coast, FL 32164")
+  ein                String  @default("88-0544790")
+  website            String  @default("www.straightaheadbeauty.com")
+  boothSize          String  @default("10x20")
+  boothType          String  @default("indoor")
+  productCategory    String  @default("Hair care products")
+  productDescription String  @default("Professional hair care and beauty products including straightening treatments, styling tools, and hair accessories")
+  targetDemographic  String  @default("Women 25-65")
+  crewSize           Int     @default(5)
+  dailySalesTarget   Int     @default(5000)
+  expenseBudget      Int     @default(3000)
+}

@@ -42,13 +42,21 @@ npm run lint            # ESLint
 
 **Testing auto-fill against live websites:** The apply engine hits real websites. Use `headless: true` for automated testing. Only switch to `headless: false` when demonstrating CAPTCHA pause behavior.
 
-**Database is a JSON file** at `data/events.json`. The `data/` directory is gitignored. Create it with `mkdir -p data` before running commands.
+**v0.2 database is SQLite** at `data/eventbiz.db` via Prisma ORM. The `data/` directory is gitignored. After `npm install`, run `npx prisma migrate dev` to create/update the database, then `node lib/seed.js` to initialize default settings and migrate any existing JSON data.
+
+**Prisma 7 adapter pattern:** PrismaClient requires `@prisma/adapter-better-sqlite3` with an explicit `file:` URL pointing to `data/eventbiz.db`. See `lib/db.ts` for the initialization pattern.
+
+**v0.1 CLI scripts** (`src/`) still use the JSON file database at `data/events.json`. The v0.2 web app (`app/`, `lib/`) uses SQLite. They operate independently.
 
 **Screenshots** are saved to `data/screenshots/`. Check these to verify form fill accuracy on new event sites.
 
 **Do not auto-submit forms** during testing. The apply engine fills and screenshots but does not click submit buttons unless explicitly requested.
 
+**Next.js 16 removed `next lint`** — use `npm run lint` which calls `eslint app lib` directly.
+
 ## File responsibilities
+
+### v0.1 CLI (JavaScript)
 
 | File | Responsibility |
 |------|----------------|
@@ -59,11 +67,32 @@ npm run lint            # ESLint
 | `src/apply.js` | Application engine — form detection, field mapping, auto-fill, CAPTCHA detection |
 | `src/export.js` | CSV exporter for Google Sheets review |
 
+### v0.2 Web App (TypeScript)
+
+| File | Responsibility |
+|------|----------------|
+| `lib/db.ts` | Prisma client singleton (SQLite via better-sqlite3 adapter) |
+| `lib/scoring.ts` | Scoring algorithm — pure function, ported from v0.1 |
+| `lib/automation/form-filler.ts` | Form detection, field mapping, auto-fill — ported from v0.1 apply.js |
+| `lib/automation/photo-uploader.ts` | Photo upload via Playwright setInputFiles |
+| `lib/automation/captcha-pause.ts` | CAPTCHA detection |
+| `lib/seed.js` | Database seeder — initializes settings, migrates JSON data |
+| `app/page.tsx` | Dashboard — stats, top events, deadlines, quick actions |
+| `app/events/page.tsx` | Events list — sortable, filterable, with apply/research/skip actions |
+| `app/events/[id]/page.tsx` | Event detail — status timeline, notes, apply/status actions |
+| `app/settings/page.tsx` | Company profile editor — feeds the auto-filler |
+| `app/api/events/route.ts` | GET events (with filters), POST new event |
+| `app/api/events/[id]/route.ts` | GET/PATCH/DELETE single event |
+| `app/api/apply/route.ts` | POST — trigger Playwright auto-apply for event(s) |
+| `app/api/scout/route.ts` | POST — trigger event discovery via Playwright scraping |
+| `app/api/settings/route.ts` | GET/PUT company profile settings |
+| `prisma/schema.prisma` | Event + Settings data model (SQLite) |
+
 ## Key patterns
 
 **Adding a new event source:** Add a `scrapeXxx(browser)` function in `scout.js` that returns an array of event objects. Call it from `main()`. Each event needs at minimum: `name`, `source`, and either `link` or `vendorApplicationUrl`.
 
-**Adding a new field mapping:** Add an entry to `FIELD_MAP` in `apply.js` with regex patterns that match the form label and the corresponding `COMPANY` field value.
+**Adding a new field mapping:** For v0.1: add an entry to `FIELD_MAP` in `src/apply.js`. For v0.2: add an entry to `FIELD_MAP` in `lib/automation/form-filler.ts` with regex patterns and the corresponding `Settings` model key.
 
 **Adding a new application type:** Handle it in `applyToEvent()` in `apply.js`. Detect the type (web form, PDF, platform, email), process accordingly, update event status.
 

@@ -1,0 +1,51 @@
+-- CreateTable
+CREATE TABLE "Event" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "name" TEXT NOT NULL,
+    "state" TEXT,
+    "location" TEXT,
+    "startDate" DATETIME,
+    "endDate" DATETIME,
+    "category" TEXT,
+    "attendance" INTEGER,
+    "boothType" TEXT,
+    "boothCost" REAL,
+    "source" TEXT NOT NULL,
+    "link" TEXT,
+    "vendorAppUrl" TEXT,
+    "appDeadline" DATETIME,
+    "applicationType" TEXT,
+    "organizerName" TEXT,
+    "organizerEmail" TEXT,
+    "organizerPhone" TEXT,
+    "score" INTEGER NOT NULL DEFAULT 0,
+    "status" TEXT NOT NULL DEFAULT 'discovered',
+    "hasHairVendor" BOOLEAN,
+    "notes" TEXT,
+    "screenshotPath" TEXT,
+    "appliedDate" DATETIME,
+    "acceptedDate" DATETIME,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);
+
+-- CreateTable
+CREATE TABLE "Settings" (
+    "id" TEXT NOT NULL PRIMARY KEY DEFAULT 'default',
+    "businessName" TEXT NOT NULL DEFAULT 'Straight Ahead Beauty',
+    "legalName" TEXT NOT NULL DEFAULT 'Milan Beauty LLC',
+    "owner" TEXT NOT NULL DEFAULT 'Santiago Martinez',
+    "email" TEXT NOT NULL DEFAULT 'santiagorealtyfl@gmail.com',
+    "phone" TEXT NOT NULL DEFAULT '786-929-8309',
+    "address" TEXT NOT NULL DEFAULT '1 Karanda Pl, Palm Coast, FL 32164',
+    "ein" TEXT NOT NULL DEFAULT '88-0544790',
+    "website" TEXT NOT NULL DEFAULT 'www.straightaheadbeauty.com',
+    "boothSize" TEXT NOT NULL DEFAULT '10x20',
+    "boothType" TEXT NOT NULL DEFAULT 'indoor',
+    "productCategory" TEXT NOT NULL DEFAULT 'Hair care products',
+    "productDescription" TEXT NOT NULL DEFAULT 'Professional hair care and beauty products including straightening treatments, styling tools, and hair accessories',
+    "targetDemographic" TEXT NOT NULL DEFAULT 'Women 25-65',
+    "crewSize" INTEGER NOT NULL DEFAULT 5,
+    "dailySalesTarget" INTEGER NOT NULL DEFAULT 5000,
+    "expenseBudget" INTEGER NOT NULL DEFAULT 3000
+);
