@@ -54,6 +54,10 @@ npm run lint            # ESLint
 
 **Next.js 16 removed `next lint`** — use `npm run lint` which calls `eslint app lib` directly.
 
+**Dev server port conflicts:** The Turbopack dev server (`npm run dev`) will auto-increment ports if 3000 is busy, but can crash with a Turbopack panic if stale `.next` state exists. Fix: `rm -rf .next` and kill lingering processes on the port before restarting.
+
+**Running both v0.1 CLI and v0.2 web app:** They share the `data/` directory but use different databases. The v0.1 CLI reads/writes `data/events.json`; the v0.2 web app reads/writes `data/eventbiz.db`. Running `node lib/seed.js` migrates JSON data into SQLite.
+
 ## File responsibilities
 
 ### v0.1 CLI (JavaScript)
