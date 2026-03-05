@@ -2,7 +2,7 @@
 
 ## Project overview
 
-Vendor operations platform: discovers events, auto-fills vendor applications via Playwright, tracks application pipeline. Built for Straight Ahead Beauty (hair care products sold at live events).
+Vendor operations platform that discovers consumer events at convention centers nationwide, auto-fills vendor applications via Playwright, and tracks the application pipeline. Built for Straight Ahead Beauty (hair care products sold at live events). The primary workflow is date-based: user picks a month, sees all relevant events, selects which to apply to, app fills applications in batch, user reviews and submits.
 
 See `CLAUDE.md` for full business context, architecture decisions, and scoring algorithm.
 See `README.md` for architecture diagrams, tech stack, and competitive landscape.
@@ -13,24 +13,28 @@ See `README.md` for architecture diagrams, tech stack, and competitive landscape
 npm install
 npx playwright install chromium
 
-# CLI tools (v0.1)
+# Web app
+npm run dev             # Next.js dev server on localhost:3000
+npm run build           # Production build
+npm run test            # Vitest
+npm run lint            # ESLint (eslint app lib)
+
+# Database
+npm run db:migrate      # Prisma migrate dev
+npm run db:seed         # Seed default settings + migrate JSON data
+
+# Legacy CLI tools (v0.1 — uses JSON database, independent of web app)
 npm run scout           # Scrape event sources
 npm run score           # Re-score all events
 npm run export          # CSV for Google Sheets
 npm run apply -- --list # List events ready for application
 npm run apply -- --batch # Batch auto-fill all applications
-
-# Web app (v0.2)
-npm run dev             # Next.js dev server
-npm run build           # Production build
-npm run test            # Vitest
-npm run lint            # ESLint
 ```
 
 ## Code style
 
 - ES modules (`"type": "module"`)
-- TypeScript for web app code (v0.2), JavaScript for CLI scripts (v0.1)
+- TypeScript for web app code (`app/`, `lib/`), JavaScript for legacy CLI scripts (`src/`)
 - Functional style preferred — pure functions for scoring, mapping, field detection
 - No classes unless genuinely needed
 - Async/await over raw promises
@@ -38,72 +42,71 @@ npm run lint            # ESLint
 
 ## Cursor Cloud specific instructions
 
-**Playwright requires a real browser.** Headless Chromium must be installed (`npx playwright install chromium`). This works in Cloud Agent VMs.
+**v0.2 database is SQLite** at `data/eventbiz.db` via Prisma ORM with `@prisma/adapter-better-sqlite3`. After `npm install`, run `npx prisma migrate dev` then `node lib/seed.js` to initialize.
 
-**Testing auto-fill against live websites:** The apply engine hits real websites. Use `headless: true` for automated testing. Only switch to `headless: false` when demonstrating CAPTCHA pause behavior.
+**Prisma 7 adapter pattern:** PrismaClient requires the better-sqlite3 adapter. See `lib/db.ts`.
 
-**v0.2 database is SQLite** at `data/eventbiz.db` via Prisma ORM. The `data/` directory is gitignored. After `npm install`, run `npx prisma migrate dev` to create/update the database, then `node lib/seed.js` to initialize default settings and migrate any existing JSON data.
-
-**Prisma 7 adapter pattern:** PrismaClient requires `@prisma/adapter-better-sqlite3` with an explicit `file:` URL pointing to `data/eventbiz.db`. See `lib/db.ts` for the initialization pattern.
-
-**v0.1 CLI scripts** (`src/`) still use the JSON file database at `data/events.json`. The v0.2 web app (`app/`, `lib/`) uses SQLite. They operate independently.
-
-**Screenshots** are saved to `data/screenshots/`. Check these to verify form fill accuracy on new event sites.
-
-**Do not auto-submit forms** during testing. The apply engine fills and screenshots but does not click submit buttons unless explicitly requested.
+**Dev server port conflicts:** Turbopack can crash if stale `.next` state exists. Fix: `rm -rf .next` and kill lingering processes before restarting.
 
 **Next.js 16 removed `next lint`** — use `npm run lint` which calls `eslint app lib` directly.
 
-**Dev server port conflicts:** The Turbopack dev server (`npm run dev`) will auto-increment ports if 3000 is busy, but can crash with a Turbopack panic if stale `.next` state exists. Fix: `rm -rf .next` and kill lingering processes on the port before restarting.
+**Playwright requires headless Chromium** — `npx playwright install chromium` works in Cloud Agent VMs.
 
-**Running both v0.1 CLI and v0.2 web app:** They share the `data/` directory but use different databases. The v0.1 CLI reads/writes `data/events.json`; the v0.2 web app reads/writes `data/eventbiz.db`. Running `node lib/seed.js` migrates JSON data into SQLite.
+**Do not auto-submit forms** during testing.
+
+**Screenshots** saved to `data/screenshots/`.
 
 ## File responsibilities
 
-### v0.1 CLI (JavaScript)
-
-| File | Responsibility |
-|------|----------------|
-| `src/config.js` | Company profile, scoring weights, event sources — single source of truth |
-| `src/db.js` | JSON database CRUD — events, status tracking, deduplication |
-| `src/scout.js` | Event discovery scrapers — one function per source |
-| `src/score.js` | Scoring algorithm — pure function, no side effects |
-| `src/apply.js` | Application engine — form detection, field mapping, auto-fill, CAPTCHA detection |
-| `src/export.js` | CSV exporter for Google Sheets review |
-
-### v0.2 Web App (TypeScript)
+### Web App (TypeScript)
 
 | File | Responsibility |
 |------|----------------|
 | `lib/db.ts` | Prisma client singleton (SQLite via better-sqlite3 adapter) |
-| `lib/scoring.ts` | Scoring algorithm — pure function, ported from v0.1 |
-| `lib/automation/form-filler.ts` | Form detection, field mapping, auto-fill — ported from v0.1 apply.js |
+| `lib/scoring.ts` | Lightweight scoring — vendor count, cash-and-carry, indoor, weekend |
+| `lib/automation/form-filler.ts` | Form detection, field mapping, auto-fill via Playwright |
 | `lib/automation/photo-uploader.ts` | Photo upload via Playwright setInputFiles |
 | `lib/automation/captcha-pause.ts` | CAPTCHA detection |
 | `lib/seed.js` | Database seeder — initializes settings, migrates JSON data |
-| `app/page.tsx` | Dashboard — stats, top events, deadlines, quick actions |
-| `app/events/page.tsx` | Events list — sortable, filterable, with apply/research/skip actions |
+| `app/page.tsx` | Dashboard — date picker entry point, monthly event view |
+| `app/events/page.tsx` | Events list — date-filtered, with batch select and apply |
 | `app/events/[id]/page.tsx` | Event detail — status timeline, notes, apply/status actions |
 | `app/settings/page.tsx` | Company profile editor — feeds the auto-filler |
-| `app/api/events/route.ts` | GET events (with filters), POST new event |
+| `app/api/events/route.ts` | GET events (with date range filter), POST new event |
 | `app/api/events/[id]/route.ts` | GET/PATCH/DELETE single event |
 | `app/api/apply/route.ts` | POST — trigger Playwright auto-apply for event(s) |
-| `app/api/scout/route.ts` | POST — trigger event discovery via Playwright scraping |
+| `app/api/scout/route.ts` | POST — trigger venue calendar scraping |
 | `app/api/settings/route.ts` | GET/PUT company profile settings |
-| `prisma/schema.prisma` | Event + Settings data model (SQLite) |
+| `prisma/schema.prisma` | Venue + Event + Settings data models |
+
+### Legacy CLI (JavaScript — v0.1)
+
+| File | Responsibility |
+|------|----------------|
+| `src/config.js` | Company profile, scoring weights — legacy, replaced by Settings table in v0.2 |
+| `src/db.js` | JSON database CRUD — legacy |
+| `src/scout.js` | Legacy scrapers (25 state fairs) — replaced by venue-based discovery |
+| `src/score.js` | Legacy scoring — replaced by lib/scoring.ts |
+| `src/apply.js` | Legacy apply engine — logic ported to lib/automation/ |
+| `src/export.js` | CSV exporter — still works against JSON database |
 
 ## Key patterns
 
-**Adding a new event source:** Add a `scrapeXxx(browser)` function in `scout.js` that returns an array of event objects. Call it from `main()`. Each event needs at minimum: `name`, `source`, and either `link` or `vendorApplicationUrl`.
+**Venue-based discovery:** The app discovers events by scraping convention center calendars, not by searching event directories. This catches events like the Bodacious Bazaar that wouldn't appear on 10times.com but ARE on the Hampton Roads Convention Center calendar.
 
-**Adding a new field mapping:** For v0.1: add an entry to `FIELD_MAP` in `src/apply.js`. For v0.2: add an entry to `FIELD_MAP` in `lib/automation/form-filler.ts` with regex patterns and the corresponding `Settings` model key.
+**Event analysis:** After discovering an event on a venue calendar, the app visits the event's own website to extract: vendor count, cash-and-carry signals, vendor application URL, booth pricing, event description.
 
-**Adding a new application type:** Handle it in `applyToEvent()` in `apply.js`. Detect the type (web form, PDF, platform, email), process accordingly, update event status.
+**Application preparation:** When user clicks Apply, the app visits the vendor application URL and either fills a web form (Playwright), drafts an email, or flags it for manual handling. Applications go to a "ready" state for user review before submission.
+
+**Adding a new venue:** Add a record to the Venue table with name, state, city, calendarUrl. The scraper will include it on the next run.
+
+**Adding a new field mapping:** Add an entry to `FIELD_MAP` in `lib/automation/form-filler.ts` with regex patterns and the corresponding Settings model key.
 
 ## What NOT to do
 
-- Don't store business info (EIN, address, etc.) anywhere except `src/config.js`
+- Don't store business info anywhere except the Settings table (editable via /settings page)
 - Don't bypass CAPTCHAs or use CAPTCHA-solving services
 - Don't auto-submit forms without user confirmation
-- Don't hardcode event-specific logic — keep scrapers generic, use the field mapper
+- Don't hardcode event-specific logic — keep scrapers generic
 - Don't ignore failed applications — log the error, flag the event, move to the next one
+- Don't over-engineer scoring — there aren't thousands of events per month, user reviews the list themselves
